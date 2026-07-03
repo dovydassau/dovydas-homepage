@@ -1,11 +1,8 @@
-import Link from 'next/link'
+'use client'
 
-const menuItems = [
-  { name: 'films', href: '/films' },
-  { name: 'photo', href: '/photo' },
-  { name: 'software', href: '/software' },
-  { name: 'diary', href: '/diary' },
-]
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { menuItems } from './nav-items'
 
 function Logo() {
   return (
@@ -17,21 +14,9 @@ function Logo() {
       aria-hidden="true"
       className="shrink-0"
     >
-      <path
-        d="M3 3H9V9H3V3Z"
-        fill="currentColor"
-        fillOpacity="0.9"
-      />
-      <path
-        d="M11 3H17V9H11V3Z"
-        fill="currentColor"
-        fillOpacity="0.55"
-      />
-      <path
-        d="M3 11H9V17H3V11Z"
-        fill="currentColor"
-        fillOpacity="0.55"
-      />
+      <path d="M3 3H9V9H3V3Z" fill="currentColor" fillOpacity="0.9" />
+      <path d="M11 3H17V9H11V3Z" fill="currentColor" fillOpacity="0.55" />
+      <path d="M3 11H9V17H3V11Z" fill="currentColor" fillOpacity="0.55" />
       <path
         d="M11 11H17V17H11V11Z"
         fill="currentColor"
@@ -41,75 +26,164 @@ function Logo() {
   )
 }
 
-export function Navbar() {
+function isActivePath(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`)
+}
+
+function NavLink({
+  href,
+  children,
+  isActive,
+  size = 'default',
+}: {
+  href: string
+  children: React.ReactNode
+  isActive: boolean
+  size?: 'default' | 'mobile'
+}) {
+  const isMobile = size === 'mobile'
+
   return (
-    <header className="relative w-full px-6 py-5 lg:px-10 lg:py-6">
-      <div className="mx-auto flex max-w-[1400px] items-center justify-between">
-        <Link
-          href="/"
-          className="flex items-center gap-2.5 text-[15px] font-medium tracking-tight text-[var(--foreground)] transition-opacity hover:opacity-70"
-        >
-          <Logo />
-          <span>dovydas saudys</span>
-        </Link>
+    <Link
+      href={href}
+      aria-current={isActive ? 'page' : undefined}
+      className={`relative inline-flex items-center whitespace-nowrap transition-colors ${
+        isMobile ? 'min-h-8 py-0.5' : 'min-h-10 px-1 py-2'
+      } ${isActive ? 'font-medium text-[var(--foreground)]' : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'}`}
+    >
+      {isActive && (
+        <span className="nav-active-pill absolute inset-0 rounded-full bg-[var(--surface-muted)]" />
+      )}
+      <span className={`relative ${isMobile ? 'px-1' : 'px-2'}`}>{children}</span>
+    </Link>
+  )
+}
 
-        <nav
-          className="absolute left-1/2 hidden -translate-x-1/2 items-center text-[14px] text-[var(--foreground-muted)] md:flex"
-          aria-label="Main"
-        >
-          {menuItems.map((item, index) => (
-            <span key={item.name} className="flex items-center">
-              <Link
-                href={item.href}
-                className="px-2 transition-colors hover:text-[var(--foreground)]"
-              >
-                {item.name}
-              </Link>
-              {index < menuItems.length - 1 && (
-                <span className="select-none text-[var(--foreground-subtle)]">
-                  |
-                </span>
-              )}
-            </span>
-          ))}
-        </nav>
+function ActionLink({
+  href,
+  children,
+  variant,
+  isActive,
+}: {
+  href: string
+  children: React.ReactNode
+  variant: 'ghost' | 'primary'
+  isActive: boolean
+}) {
+  const base =
+    'relative inline-flex min-h-10 items-center overflow-hidden rounded-full px-3 py-2 text-[12px] font-medium transition-opacity sm:px-4 sm:text-[13px]'
 
-        <div className="flex items-center gap-2">
-          <Link
-            href="/contact"
-            className="hidden rounded-full px-4 py-2 text-[13px] font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-muted)] sm:inline-flex"
-          >
-            contact
-          </Link>
-          <Link
-            href="/resume"
-            className="inline-flex rounded-full bg-[var(--foreground)] px-4 py-2 text-[13px] font-medium text-[var(--background)] transition-opacity hover:opacity-85"
-          >
-            resume
-          </Link>
-        </div>
-      </div>
+  const variantClass =
+    variant === 'primary'
+      ? isActive
+        ? 'bg-[var(--foreground)] text-[var(--background)] ring-2 ring-[var(--foreground)] ring-offset-2 ring-offset-[var(--background)]'
+        : 'bg-[var(--foreground)] text-[var(--background)] hover:opacity-85'
+      : isActive
+        ? 'text-[var(--foreground)]'
+        : 'text-[var(--foreground)] hover:bg-[var(--surface-muted)]'
 
-      <nav
-        className="mx-auto mt-4 flex max-w-[1400px] flex-wrap items-center justify-center gap-x-1 gap-y-1 text-[14px] text-[var(--foreground-muted)] md:hidden"
-        aria-label="Main mobile"
-      >
-        {menuItems.map((item, index) => (
+  return (
+    <Link
+      href={href}
+      aria-current={isActive ? 'page' : undefined}
+      className={`${base} ${variantClass}`}
+    >
+      {isActive && variant === 'ghost' && (
+        <span className="nav-active-pill absolute inset-0 rounded-full bg-[var(--surface-muted)]" />
+      )}
+      {isActive && variant === 'primary' && (
+        <span className="nav-active-pill absolute inset-0 rounded-full bg-[var(--foreground)]" />
+      )}
+      <span className="relative">{children}</span>
+    </Link>
+  )
+}
+
+function NavMenu({
+  pathname,
+  size = 'default',
+  excludeSoftware = false,
+}: {
+  pathname: string
+  size?: 'default' | 'mobile'
+  excludeSoftware?: boolean
+}) {
+  const items = excludeSoftware
+    ? menuItems.filter((item) => item.name !== 'software')
+    : menuItems
+
+  return (
+    <>
+      {items.map((item, index) => {
+        const isActive = isActivePath(pathname, item.href)
+
+        return (
           <span key={item.name} className="flex items-center">
-            <Link
-              href={item.href}
-              className="px-1.5 transition-colors hover:text-[var(--foreground)]"
-            >
+            <NavLink href={item.href} size={size} isActive={isActive}>
               {item.name}
-            </Link>
-            {index < menuItems.length - 1 && (
-              <span className="select-none text-[var(--foreground-subtle)]">
+            </NavLink>
+            {index < items.length - 1 && (
+              <span
+                className={`select-none text-[var(--foreground-subtle)] ${size === 'mobile' ? 'text-[11px]' : ''}`}
+              >
                 |
               </span>
             )}
           </span>
-        ))}
-      </nav>
+        )
+      })}
+    </>
+  )
+}
+
+export function Navbar() {
+  const pathname = usePathname()
+
+  return (
+    <header className="page-shell w-full pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:pb-4 sm:pt-4 lg:pt-6">
+      <div className="mx-auto max-w-[1400px]">
+        <div className="relative flex items-center justify-between gap-2">
+          <Link
+            href="/"
+            aria-current={pathname === '/' ? 'page' : undefined}
+            className="flex min-h-8 min-w-0 flex-1 items-center gap-2 text-[14px] font-medium tracking-tight text-[var(--foreground)] transition-opacity hover:opacity-70 sm:min-h-11 sm:gap-2.5 sm:text-[15px] md:flex-none"
+          >
+            <Logo />
+            <span className="truncate">dovydas saudys</span>
+          </Link>
+
+          <nav
+            className="absolute left-1/2 hidden -translate-x-1/2 items-center text-[14px] md:flex"
+            aria-label="Main"
+          >
+            <NavMenu pathname={pathname} />
+          </nav>
+
+          <nav
+            className="flex shrink-0 items-center text-[12px] leading-none md:hidden"
+            aria-label="Main mobile"
+          >
+            <NavMenu pathname={pathname} size="mobile" excludeSoftware />
+          </nav>
+
+          <div className="hidden shrink-0 items-center gap-1.5 sm:gap-2 md:flex">
+            <ActionLink
+              href="/contact"
+              variant="ghost"
+              isActive={isActivePath(pathname, '/contact')}
+            >
+              contact
+            </ActionLink>
+            <ActionLink
+              href="/resume"
+              variant="primary"
+              isActive={isActivePath(pathname, '/resume')}
+            >
+              resume
+            </ActionLink>
+          </div>
+        </div>
+      </div>
     </header>
   )
 }

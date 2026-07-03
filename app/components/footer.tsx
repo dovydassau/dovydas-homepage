@@ -17,7 +17,7 @@ function ArrowIcon() {
 
 export default function Footer() {
   return (
-    <footer className="px-6 py-10 lg:px-10">
+    <footer className="page-shell py-8 sm:py-10">
       <div className="mx-auto flex max-w-[1400px] flex-col gap-6 border-t border-[var(--border)] pt-8 md:flex-row md:items-center md:justify-between">
         <p className="text-[13px] text-[var(--foreground-muted)]">
           © {new Date().getFullYear()} dovydas saudys
