@@ -47,6 +47,7 @@ export default function RootLayout({
     <html
       lang="en"
       className={cx(GeistSans.variable, GeistMono.variable)}
+      suppressHydrationWarning
     >
       <body className="min-h-screen bg-[var(--background)] font-[family-name:var(--font-geist-sans)] text-[var(--foreground)] antialiased">
         <main className="flex min-h-screen flex-col">
