@@ -1,8 +1,18 @@
 @import 'tailwindcss';
 
+:root {
+  --background: #f7f7f4;
+  --foreground: #26251e;
+  --foreground-muted: #5c5b56;
+  --foreground-subtle: #b8b7b2;
+  --surface-muted: #ebebea;
+  --surface-hover: #e0e0dd;
+  --border: #e4e4e1;
+}
+
 ::selection {
-  background-color: #47a3f3;
-  color: #fefefe;
+  background-color: #26251e;
+  color: #f7f7f4;
 }
 
 :root {
@@ -31,6 +41,58 @@
 
 html {
   min-width: 360px;
+  -webkit-text-size-adjust: 100%;
+}
+
+.page-shell {
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+@media (min-width: 640px) {
+  .page-shell {
+    padding-left: max(1.5rem, env(safe-area-inset-left));
+    padding-right: max(1.5rem, env(safe-area-inset-right));
+  }
+}
+
+@media (min-width: 1024px) {
+  .page-shell {
+    padding-left: max(2.5rem, env(safe-area-inset-left));
+    padding-right: max(2.5rem, env(safe-area-inset-right));
+  }
+}
+
+@keyframes nav-bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+
+  55% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+
+  75% {
+    transform: scale(0.94);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.nav-active-pill {
+  animation: nav-bounce-in 0.5s cubic-bezier(0.34, 1.45, 0.64, 1) both;
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-active-pill {
+    animation: none;
+  }
 }
 
 .prose .anchor {
