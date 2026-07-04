@@ -336,6 +336,7 @@ const dopEntries: DopEntry[] = [
     director: 'Džiugas Šėma',
     date: '2021',
     videoUrl: 'https://www.youtube.com/watch?v=eWOE8c6uq54',
+    previewImg: 'https://i.ytimg.com/vi/eWOE8c6uq54/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLC7hXMY7S4poy96ECP5c32Qvw3KaA',
     extraCredits: [
       { label: 'DP', value: 'Dovydas Šaudys' },
     ]
@@ -780,6 +781,7 @@ const crewEntries: CrewEntry[] = [
     dp: 'Lucas Casanovas',
     year: '2021',
     videoUrl: 'https://vimeo.com/586728523',
+    previewImg: 'https://www.google.com/url?sa=t&source=web&rct=j&url=https%3A%2F%2Fwww.oneclub.org%2Fawards%2Ftheoneshow%2F-award%2F53525%2Fthe-most-normal-shoot%2F&ved=0CBYQjRxqGAoTCOiA2LvauZUDFQAAAAAdAAAAABDCAg&opi=89978449',
   },
   {
     title: 'Telia - Rollover',
@@ -789,6 +791,7 @@ const crewEntries: CrewEntry[] = [
     dp: 'Audrius Budrys',
     year: '2020',
     videoUrl: 'https://vimeo.com/413644519',
+    previewImg: 'https://firebasestorage.googleapis.com/v0/b/dovydassaudys-da036.firebasestorage.app/o/thumbnails%2Ftelia_rollover.jpg?alt=media&token=9a2ebf0e-37bb-4ae2-a3cd-ed7de520b141',
   },
   {
     title: 'Vinski and the Invisibility Powder',
