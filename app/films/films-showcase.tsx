@@ -1,7 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useMemo, useRef, useState, type Ref } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import {
   films,
@@ -9,9 +8,275 @@ import {
   getFilmBySlug,
   isFilmInactive,
   toEmbedUrl,
+  type ExtraContent,
   type Film,
   type FilmCategory,
 } from './films-data'
+
+type PreviewLayer = { id: number; src: string; loaded: boolean }
+
+function MousePreview({
+  src,
+  cardRef,
+}: {
+  src: string | null
+  cardRef?: Ref<HTMLDivElement>
+}) {
+  const followRef = useRef<HTMLDivElement>(null)
+  const target = useRef({ x: 0, y: 0 })
+  const current = useRef({ x: 0, y: 0 })
+  const prevX = useRef(0)
+  const counter = useRef(0)
+  const prevSrc = useRef<string | null>(null)
+
+  const [layers, setLayers] = useState<PreviewLayer[]>([])
+
+  const topLayer = layers[layers.length - 1]
+  const topLoaded = topLayer?.loaded ?? false
+
+  useEffect(() => {
+    const handleMove = (event: PointerEvent) => {
+      target.current = { x: event.clientX, y: event.clientY }
+    }
+    window.addEventListener('pointermove', handleMove)
+    return () => window.removeEventListener('pointermove', handleMove)
+  }, [])
+
+  // Queue a new layer whenever the hovered image changes.
+  useEffect(() => {
+    const cameFromHidden = !prevSrc.current
+    prevSrc.current = src
+    if (!src) return
+    setLayers((prev) => {
+      const last = prev[prev.length - 1]
+      if (last && last.src === src) return prev
+      counter.current += 1
+      const nextLayer = { id: counter.current, src, loaded: false }
+      // Fresh appearance (mouse entered from outside the list): start clean so
+      // no stale image flashes — only the progress bar shows until it loads.
+      // Moving item-to-item keeps the previous image for a smooth crossfade.
+      return cameFromHidden
+        ? [nextLayer]
+        : [...prev, nextLayer].slice(-3)
+    })
+  }, [src])
+
+  // Once the newest image is ready, drop the layers underneath it.
+  useEffect(() => {
+    if (!topLoaded) return
+    const timer = setTimeout(() => {
+      setLayers((prev) => prev.slice(-1))
+    }, 320)
+    return () => clearTimeout(timer)
+  }, [topLoaded, topLayer?.id])
+
+  // Spring the card toward the cursor with a velocity-based tilt.
+  useEffect(() => {
+    if (layers.length === 0) return
+
+    current.current = { ...target.current }
+    prevX.current = current.current.x
+    let frame = 0
+
+    const tick = () => {
+      const el = followRef.current
+      const t = target.current
+      const c = current.current
+
+      c.x += (t.x - c.x) * 0.16
+      c.y += (t.y - c.y) * 0.16
+
+      const velocity = c.x - prevX.current
+      prevX.current = c.x
+      const tilt = Math.max(-16, Math.min(16, velocity * 0.7))
+
+      if (el) {
+        el.style.transform = `translate3d(${c.x}px, ${c.y}px, 0) translate(1.25rem, -50%) rotate(${tilt}deg)`
+      }
+      frame = requestAnimationFrame(tick)
+    }
+
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [layers.length])
+
+  const markLoaded = (id: number) =>
+    setLayers((prev) =>
+      prev.map((layer) =>
+        layer.id === id ? { ...layer, loaded: true } : layer,
+      ),
+    )
+
+  return (
+    <div
+      aria-hidden
+      className={`pointer-events-none fixed left-0 top-0 z-50 hidden transition-opacity duration-200 ease-out lg:block ${
+        src ? 'opacity-100' : 'opacity-0'
+      }`}
+    >
+      <div ref={followRef} style={{ willChange: 'transform' }}>
+        <div
+          className={`origin-center transition-transform duration-300 ease-out ${
+            src ? 'scale-100' : 'scale-90'
+          }`}
+        >
+          <div
+            ref={cardRef}
+            className="relative h-40 w-64 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] shadow-2xl"
+          >
+            {/* Skeleton shimmer shown until the first image resolves. */}
+            <div
+              className={`preview-shimmer absolute inset-0 transition-opacity duration-300 ${
+                topLoaded ? 'opacity-0' : 'opacity-100'
+              }`}
+            />
+
+            {layers.map((layer, index) => {
+              const isTop = index === layers.length - 1
+              const visible = isTop ? layer.loaded : !topLoaded
+              return (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={layer.id}
+                  src={layer.src}
+                  alt=""
+                  onLoad={() => markLoaded(layer.id)}
+                  ref={(node) => {
+                    if (node?.complete && node.naturalWidth > 0 && !layer.loaded) {
+                      // Handle already-cached images (no load event fires).
+                      setTimeout(() => markLoaded(layer.id), 0)
+                    }
+                  }}
+                  className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ease-out ${
+                    visible ? 'opacity-100' : 'opacity-0'
+                  }`}
+                />
+              )
+            })}
+
+            {/* Indeterminate progress bar while the newest image loads. */}
+            <div
+              className={`absolute inset-x-0 bottom-0 h-0.5 overflow-hidden bg-[var(--surface-hover)] transition-opacity duration-200 ${
+                topLoaded ? 'opacity-0' : 'opacity-100'
+              }`}
+            >
+              <div className="preview-progress-bar h-full w-1/3 rounded-full bg-[var(--accent)]" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+type FlyRect = { left: number; top: number; width: number; height: number }
+type FlyState = { token: number; src: string; start: FlyRect }
+
+// On list click, the hover card flies onto the detail media, then fades out.
+function FlyOverlay({ fly, onDone }: { fly: FlyState; onDone: () => void }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const onDoneRef = useRef(onDone)
+  onDoneRef.current = onDone
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const done = () => onDoneRef.current()
+    let cancelled = false
+    let settleTimer: ReturnType<typeof setTimeout>
+    let targetEl: HTMLElement | null = null
+
+    const restoreTarget = () => {
+      if (!targetEl) return
+      targetEl.style.transition = ''
+      targetEl.style.opacity = ''
+    }
+
+    el.style.transform = `translate(${fly.start.left}px, ${fly.start.top}px)`
+    el.style.width = `${fly.start.width}px`
+    el.style.height = `${fly.start.height}px`
+    el.style.opacity = '1'
+
+    const fadeOut = () => {
+      if (cancelled) return
+      // Reveal the media underneath as the card dissolves over it.
+      if (targetEl) {
+        targetEl.style.transition = 'opacity 0.4s ease-out'
+        targetEl.style.opacity = '1'
+      }
+      el.style.transition = 'opacity 0.4s ease-out'
+      el.style.opacity = '0'
+      settleTimer = setTimeout(done, 420)
+    }
+
+    let tries = 0
+    const flyToTarget = () => {
+      if (cancelled) return
+      const targets = Array.from(
+        document.querySelectorAll<HTMLElement>('[data-detail-media]'),
+      )
+      targetEl =
+        targets.find((node) => {
+          const rect = node.getBoundingClientRect()
+          return rect.width > 0 && rect.height > 0
+        }) ?? null
+
+      if (!targetEl) {
+        if (tries++ < 12) {
+          requestAnimationFrame(flyToTarget)
+          return
+        }
+        done()
+        return
+      }
+
+      // Hide the media until the card arrives on top of it.
+      targetEl.style.transition = 'none'
+      targetEl.style.opacity = '0'
+
+      const target = targetEl.getBoundingClientRect()
+      void el.offsetWidth
+      const ease = 'cubic-bezier(0.22, 1, 0.36, 1)'
+      el.style.transition = `transform 0.55s ${ease}, width 0.55s ${ease}, height 0.55s ${ease}`
+      el.style.transform = `translate(${target.left}px, ${target.top}px)`
+      el.style.width = `${target.width}px`
+      el.style.height = `${target.height}px`
+
+      const handleEnd = (event: TransitionEvent) => {
+        if (event.propertyName !== 'transform') return
+        el.removeEventListener('transitionend', handleEnd)
+        fadeOut()
+      }
+      el.addEventListener('transitionend', handleEnd)
+      // Fallback in case transitionend doesn't fire.
+      settleTimer = setTimeout(fadeOut, 650)
+    }
+
+    const raf = requestAnimationFrame(() =>
+      requestAnimationFrame(flyToTarget),
+    )
+
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(raf)
+      clearTimeout(settleTimer)
+      restoreTarget()
+    }
+    // Runs once per launch; identified by token.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fly.token])
+
+  return (
+    <div
+      aria-hidden
+      ref={ref}
+      className="pointer-events-none fixed left-0 top-0 z-50 hidden overflow-hidden rounded-2xl border border-[var(--border)] shadow-2xl will-change-transform lg:block"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={fly.src} alt="" className="h-full w-full object-cover" />
+    </div>
+  )
+}
 
 function resolveInitialState(initialSlug?: string) {
   const film = initialSlug ? getFilmBySlug(initialSlug) : undefined
@@ -47,7 +312,10 @@ function FilmPreview({ film, index }: { film: Film; index: number }) {
 
   if (embedUrl) {
     return (
-      <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-[var(--border)] bg-black">
+      <div
+        data-detail-media
+        className="relative aspect-video w-full overflow-hidden rounded-2xl border border-[var(--border)] bg-black"
+      >
         {film.tag && (
           <div className="absolute right-3 top-3 z-10">
             <FilmTag tag={film.tag} />
@@ -68,7 +336,8 @@ function FilmPreview({ film, index }: { film: Film; index: number }) {
 
   return (
     <div
-      className="relative aspect-video w-full overflow-hidden rounded-2xl border border-[var(--border)]"
+      data-detail-media
+      className="detail-media-reveal relative aspect-video w-full overflow-hidden rounded-2xl border border-[var(--border)]"
       style={{ backgroundImage: film.gradient }}
     >
       {film.tag && (
@@ -84,11 +353,23 @@ function FilmPreview({ film, index }: { film: Film; index: number }) {
   )
 }
 
+function isIndependent(value?: string) {
+  return value?.trim().toLowerCase() === 'independent'
+}
+
 function CreditRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between border-b border-[var(--border)] py-2.5 text-[14px]">
       <span className="text-[var(--foreground-subtle)]">{label}</span>
-      <span className="text-[var(--foreground)]">{value}</span>
+      <span
+        className={
+          isIndependent(value)
+            ? 'text-[var(--foreground-subtle)]'
+            : 'text-[var(--foreground)]'
+        }
+      >
+        {value}
+      </span>
     </div>
   )
 }
@@ -97,31 +378,86 @@ function FilmDetail({ film, index }: { film: Film; index: number }) {
   return (
     <div>
       <FilmPreview film={film} index={index} />
-      <div className="mt-4 flex flex-wrap items-center gap-2.5">
+      <div
+        className="detail-rise mt-4 flex flex-wrap items-center gap-2.5"
+        style={{ animationDelay: '0.1s' }}
+      >
         <h2 className="text-[clamp(1.5rem,3vw,2rem)] font-medium leading-tight tracking-[-0.02em] text-[var(--accent)]">
           {film.title}
         </h2>
         {film.tag && <FilmTag tag={film.tag} />}
       </div>
-      <p className="mt-1 text-[14px] text-[var(--foreground-muted)]">
+      <p
+        className="detail-rise mt-1 text-[14px] text-[var(--foreground-muted)]"
+        style={{ animationDelay: '0.16s' }}
+      >
         {film.role} · {film.year}
       </p>
 
       {film.summary && (
-        <p className="mt-4 text-[14px] leading-relaxed text-[var(--foreground-muted)]">
+        <p
+          className="detail-rise mt-4 text-[14px] leading-relaxed text-[var(--foreground-muted)]"
+          style={{ animationDelay: '0.22s' }}
+        >
           {film.summary}
         </p>
       )}
 
-      <div className="mt-5">
+      <div className="detail-rise mt-5" style={{ animationDelay: '0.24s' }}>
         {film.credits.map((credit) => (
           <CreditRow
-            key={credit.label}
+            key={credit.id}
             label={credit.label}
             value={credit.value}
           />
         ))}
       </div>
+
+      {film.description && (
+        <p
+          className="detail-rise mt-5 text-[14px] leading-relaxed text-[var(--foreground-muted)]"
+          style={{ animationDelay: '0.3s' }}
+        >
+          {film.description}
+        </p>
+      )}
+
+      {film.extraContent && film.extraContent.length > 0 && (
+        <div className="mt-8 flex flex-col gap-8">
+          {film.extraContent.map((item) => (
+            <ExtraContentItem key={item.id} item={item} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ExtraContentItem({ item }: { item: ExtraContent }) {
+  const embedUrl = toEmbedUrl(item.videoUrl)
+
+  return (
+    <div>
+      <h3 className="text-[15px] font-medium tracking-[-0.01em] text-[var(--foreground)]">
+        {item.title}
+      </h3>
+      {item.description && (
+        <p className="mt-1 text-[13px] leading-relaxed text-[var(--foreground-muted)]">
+          {item.description}
+        </p>
+      )}
+      {embedUrl && (
+        <div className="mt-3 aspect-video w-full overflow-hidden rounded-xl border border-[var(--border)] bg-black sm:rounded-2xl">
+          <iframe
+            src={embedUrl}
+            title={item.title}
+            className="h-full w-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            loading="lazy"
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -182,19 +518,49 @@ function CategoryToggle({
   )
 }
 
+// Update the URL without a Next route change so the showcase stays mounted
+// (a full navigation would remount this tree and abort the fly animation).
+function updateUrl(path: string) {
+  if (typeof window !== 'undefined' && window.location.pathname !== path) {
+    window.history.pushState(null, '', path)
+  }
+}
+
 export function FilmsShowcase({ initialSlug }: { initialSlug?: string }) {
-  const router = useRouter()
   const [initial] = useState(() => resolveInitialState(initialSlug))
   const [category, setCategory] = useState<FilmCategory>(initial.category)
   const [selectedId, setSelectedId] = useState(initial.selectedId)
   const [mobileDetailId, setMobileDetailId] = useState<string | null>(
     initial.mobileDetailId,
   )
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null)
+  const [fly, setFly] = useState<FlyState | null>(null)
+  const previewCardRef = useRef<HTMLDivElement>(null)
+  const flyToken = useRef(0)
 
   const visibleFilms = useMemo(
     () => films.filter((film) => film.category === category),
     [category],
   )
+
+  function launchFly(src: string) {
+    const card = previewCardRef.current
+    if (!card) return
+    const rect = card.getBoundingClientRect()
+    if (rect.width === 0) return
+    flyToken.current += 1
+    setFly({
+      token: flyToken.current,
+      src,
+      start: {
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
+      },
+    })
+    setPreviewSrc(null)
+  }
 
   function selectFilm(film: Film, options?: { openMobileDetail?: boolean }) {
     setCategory(film.category)
@@ -202,12 +568,12 @@ export function FilmsShowcase({ initialSlug }: { initialSlug?: string }) {
     if (options?.openMobileDetail) {
       setMobileDetailId(film.id)
     }
-    router.push(`/films/${film.id}`, { scroll: false })
+    updateUrl(`/films/${film.id}`)
   }
 
   function closeMobileDetail() {
     setMobileDetailId(null)
-    router.push('/films', { scroll: false })
+    updateUrl('/films')
   }
 
   function handleCategoryChange(next: FilmCategory) {
@@ -219,11 +585,26 @@ export function FilmsShowcase({ initialSlug }: { initialSlug?: string }) {
 
     if (first) {
       setSelectedId(first.id)
-      router.push(`/films/${first.id}`, { scroll: false })
+      updateUrl(`/films/${first.id}`)
     } else {
-      router.push('/films', { scroll: false })
+      updateUrl('/films')
     }
   }
+
+  // Keep selection in sync when the user navigates via browser back/forward.
+  useEffect(() => {
+    const handlePopState = () => {
+      const match = window.location.pathname.match(/^\/films\/([^/]+)/)
+      const film = match ? getFilmBySlug(match[1]) : undefined
+      setMobileDetailId(null)
+      if (film) {
+        setCategory(film.category)
+        setSelectedId(film.id)
+      }
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   const selectedFilm = getFilmBySlug(selectedId)
   const selectedIndex = selectedFilm
@@ -243,6 +624,19 @@ export function FilmsShowcase({ initialSlug }: { initialSlug?: string }) {
 
   return (
     <>
+      <MousePreview src={fly ? null : previewSrc} cardRef={previewCardRef} />
+      {fly && (
+        <FlyOverlay
+          key={fly.token}
+          fly={fly}
+          onDone={() =>
+            setFly((current) =>
+              current && current.token === fly.token ? null : current,
+            )
+          }
+        />
+      )}
+
       {/* Desktop: click-to-select, resizable two-pane */}
       <div className="mt-2 hidden lg:block">
       <Group
@@ -302,9 +696,21 @@ export function FilmsShowcase({ initialSlug }: { initialSlug?: string }) {
                   key={film.id}
                   type="button"
                   disabled={isInactive}
-                  onClick={() => !isInactive && selectFilm(film)}
-                  className={`grid w-full grid-cols-[minmax(0,1fr)_7rem_3rem] items-center gap-x-4 border-b border-[var(--border)] py-2.5 text-left text-[16px] tracking-[-0.012em] transition-colors @[600px]:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_7rem_3rem] ${rowColor} ${
-                    isInactive ? 'cursor-default' : 'hover:text-[var(--accent)]'
+                  onClick={() => {
+                    if (isInactive) return
+                    if (film.id !== selectedId && film.previewImg) {
+                      launchFly(film.previewImg)
+                    }
+                    selectFilm(film)
+                  }}
+                  onMouseEnter={() =>
+                    setPreviewSrc(film.previewImg ?? null)
+                  }
+                  onMouseLeave={() => setPreviewSrc(null)}
+                  className={`grid w-full origin-left grid-cols-[minmax(0,1fr)_7rem_3rem] items-center gap-x-4 border-b border-[var(--border)] py-2.5 text-left text-[16px] tracking-[-0.012em] transition-[color,transform] duration-150 @[600px]:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_7rem_3rem] ${rowColor} ${
+                    isInactive
+                      ? 'cursor-default'
+                      : 'hover:text-[var(--accent)] active:scale-[0.99]'
                   }`}
                 >
                   <span className="min-w-0">
@@ -321,18 +727,25 @@ export function FilmsShowcase({ initialSlug }: { initialSlug?: string }) {
                       <span className="truncate">{film.title}</span>
                     </span>
                     {film.category === 'assistant' && (
-                      <span className="mt-0.5 block truncate text-[13px] text-[var(--foreground-subtle)] @[600px]:hidden">
+                      <span
+                        className={`mt-0.5 block truncate text-[13px] text-[var(--foreground-subtle)] @[600px]:hidden ${
+                          isIndependent(film.production) ? 'opacity-60' : ''
+                        }`}
+                      >
                         {film.production}
                       </span>
                     )}
-                    {film.category === 'featured' && (film.type || film.tag) && (
+                    {film.category === 'featured' && film.tag && (
                       <span className="mt-0.5 flex items-center gap-2 text-[13px] text-[var(--foreground-subtle)]">
-                        {film.tag && <FilmTag tag={film.tag} />}
-                        {film.type && <span className="truncate">{film.type}</span>}
+                        <FilmTag tag={film.tag} />
                       </span>
                     )}
                   </span>
-                  <span className="hidden min-w-0 truncate @[600px]:block">
+                  <span
+                    className={`hidden min-w-0 truncate @[600px]:block ${
+                      isIndependent(film.production) ? 'opacity-60' : ''
+                    }`}
+                  >
                     {film.production}
                   </span>
                   <span className="truncate">{film.role}</span>
