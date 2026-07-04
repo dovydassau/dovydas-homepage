@@ -140,7 +140,7 @@ export function Navbar() {
   const pathname = usePathname()
 
   return (
-    <header className="page-shell w-full pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:pb-4 sm:pt-4 lg:pt-6">
+    <header className="nav-glass page-shell sticky top-0 z-50 w-full pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:pb-4 sm:pt-4 lg:pt-6">
       <div className="mx-auto max-w-[1400px]">
         <div className="relative flex items-center justify-between gap-2">
           <Link

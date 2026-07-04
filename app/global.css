@@ -8,6 +8,7 @@
   --surface-muted: #ebebea;
   --surface-hover: #e0e0dd;
   --border: #e4e4e1;
+  --accent: #184fff;
 }
 
 ::selection {
@@ -47,6 +48,19 @@ html {
 .page-shell {
   padding-left: max(1rem, env(safe-area-inset-left));
   padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+.nav-glass {
+  background-color: color-mix(in srgb, var(--background) 65%, transparent);
+  backdrop-filter: saturate(180%) blur(16px);
+  -webkit-backdrop-filter: saturate(180%) blur(16px);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .nav-glass {
+    background-color: color-mix(in srgb, var(--background) 92%, transparent);
+  }
 }
 
 @media (min-width: 640px) {
@@ -89,8 +103,39 @@ html {
   transform-origin: center;
 }
 
+@keyframes film-detail-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.film-detail-enter {
+  animation: film-detail-enter 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.films-detail-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.films-detail-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.films-detail-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 9999px;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .nav-active-pill {
+  .nav-active-pill,
+  .film-detail-enter {
     animation: none;
   }
 }

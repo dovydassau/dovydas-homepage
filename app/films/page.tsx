@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
-import { SectionPlaceholder } from 'app/components/section-placeholder'
+import { PageShell } from 'app/components/page-shell'
+import { FilmsShowcase } from './films-showcase'
 
 export const metadata: Metadata = {
   title: 'Films',
@@ -8,10 +9,8 @@ export const metadata: Metadata = {
 
 export default function FilmsPage() {
   return (
-    <SectionPlaceholder
-      title="Films"
-      description="Selected film and video projects. Full reel and case studies coming soon."
-      itemLabel="film"
-    />
+    <PageShell>
+      <FilmsShowcase />
+    </PageShell>
   )
 }
