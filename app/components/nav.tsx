@@ -102,15 +102,11 @@ function ActionLink({
 function NavMenu({
   pathname,
   size = 'default',
-  excludeSoftware = false,
 }: {
   pathname: string
   size?: 'default' | 'mobile'
-  excludeSoftware?: boolean
 }) {
-  const items = excludeSoftware
-    ? menuItems.filter((item) => item.name !== 'software')
-    : menuItems
+  const items = menuItems
 
   return (
     <>
@@ -140,9 +136,13 @@ export function Navbar() {
   const pathname = usePathname()
 
   return (
-    <header className="nav-glass page-shell sticky top-0 z-50 w-full pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:pb-4 sm:pt-4 lg:pt-6">
+    <header className="page-shell sticky top-0 z-50 w-full pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] sm:pb-3 sm:pt-3 lg:pt-4">
+      <div
+        aria-hidden
+        className="nav-scrim pointer-events-none absolute inset-x-0 top-0 -z-10 h-[calc(100%+1.5rem)]"
+      />
       <div className="mx-auto max-w-[1400px]">
-        <div className="relative flex items-center justify-between gap-2">
+        <div className="nav-floating relative flex items-center justify-between gap-2 rounded-2xl px-3 py-2 sm:px-4 sm:py-2.5">
           <Link
             href="/"
             aria-current={pathname === '/' ? 'page' : undefined}
@@ -163,7 +163,7 @@ export function Navbar() {
             className="flex shrink-0 items-center text-[12px] leading-none md:hidden"
             aria-label="Main mobile"
           >
-            <NavMenu pathname={pathname} size="mobile" excludeSoftware />
+            <NavMenu pathname={pathname} size="mobile" />
           </nav>
 
           <div className="hidden shrink-0 items-center gap-1.5 sm:gap-2 md:flex">
@@ -174,6 +174,7 @@ export function Navbar() {
             >
               contact
             </ActionLink>
+            {/* Temporarily hidden:
             <ActionLink
               href="/resume"
               variant="primary"
@@ -181,6 +182,7 @@ export function Navbar() {
             >
               resume
             </ActionLink>
+            */}
           </div>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { PageShell } from 'app/components/page-shell'
+import { ContactForm } from './contact-form'
 
 export const metadata: Metadata = {
   title: 'Contact',
@@ -13,26 +14,12 @@ export default function ContactPage() {
         Contact
       </h1>
       <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-[var(--foreground-muted)] sm:mt-4 sm:text-base">
-        For collaborations, commissions, or general inquiries — reach out below.
+        For collaborations, commissions, or general inquiries — send a message
+        and I&apos;ll get back to you.
       </p>
 
-      <div className="mt-8 max-w-lg space-y-4 sm:mt-10">
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] p-5 sm:rounded-2xl sm:p-6">
-          <p className="text-[13px] uppercase tracking-wide text-[var(--foreground-subtle)]">
-            Email
-          </p>
-          <p className="mt-2 text-[15px] text-[var(--foreground-muted)]">
-            hello@example.com
-          </p>
-        </div>
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] p-5 sm:rounded-2xl sm:p-6">
-          <p className="text-[13px] uppercase tracking-wide text-[var(--foreground-subtle)]">
-            Location
-          </p>
-          <p className="mt-2 text-[15px] text-[var(--foreground-muted)]">
-            Berlin, Germany
-          </p>
-        </div>
+      <div className="mt-8 max-w-lg sm:mt-10">
+        <ContactForm />
       </div>
     </PageShell>
   )
