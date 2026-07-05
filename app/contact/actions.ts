@@ -12,7 +12,7 @@ const TO_EMAIL = process.env.CONTACT_TO_EMAIL ?? 'studio@dovydassaudys.com'
 // Use a verified domain address once set up (e.g. contact@dovydassaudys.com).
 // `onboarding@resend.dev` works out of the box but only delivers to the
 // address that owns the Resend account.
-const FROM_EMAIL = process.env.CONTACT_FROM_EMAIL ?? 'onboarding@resend.dev'
+const FROM_EMAIL = process.env.CONTACT_FROM_EMAIL ?? 'studio@dovydassaudys.com'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -82,6 +82,7 @@ export async function sendContactEmail(
     })
 
     if (error) {
+      console.error('[contact] Resend error:', error)
       return {
         status: 'error',
         message: 'Something went wrong sending your message. Please try again.',
@@ -89,7 +90,8 @@ export async function sendContactEmail(
     }
 
     return { status: 'success', message: "Thanks — I'll be in touch soon." }
-  } catch {
+  } catch (error) {
+    console.error('[contact] Unexpected error:', error)
     return {
       status: 'error',
       message: 'Something went wrong sending your message. Please try again.',
