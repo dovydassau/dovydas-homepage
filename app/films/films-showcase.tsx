@@ -3,6 +3,18 @@
 import { useEffect, useMemo, useRef, useState, type Ref } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import {
+  DataTable,
+  DataTableCell,
+  DataTableHeader,
+  DataTableHeaderCell,
+  DataTableIndex,
+  DataTablePrimaryCell,
+  DataTablePrimaryLine,
+  DataTableRow,
+  DataTableSubtext,
+  DataTableTabular,
+} from '../components/data-table'
+import {
   films,
   formatFilmNumber,
   getFilmBySlug,
@@ -664,7 +676,7 @@ export function FilmsShowcase({ initialSlug }: { initialSlug?: string }) {
         </Separator>
 
         <Panel defaultSize="58%" minSize="35%" style={{ overflow: 'visible' }}>
-          <div className="@container pl-2">
+          <DataTable themed className="pl-2">
             <div className="mb-4 flex items-center justify-between">
               <span className="text-[13px] text-[var(--foreground-muted)]">
                 {visibleFilms.length}{' '}
@@ -675,27 +687,24 @@ export function FilmsShowcase({ initialSlug }: { initialSlug?: string }) {
               <CategoryToggle value={category} onChange={handleCategoryChange} />
             </div>
 
-            <div className="grid grid-cols-[minmax(0,1fr)_7rem_3rem] gap-x-4 border-b border-[var(--border)] pb-2 text-[13px] font-medium uppercase tracking-[0.08em] text-[var(--foreground-subtle)] @[600px]:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_7rem_3rem]">
-              <span>Project</span>
-              <span className="hidden @[600px]:block">Production</span>
-              <span>Role</span>
-              <span className="text-right">Year</span>
-            </div>
+            <DataTableHeader>
+              <DataTableHeaderCell>Project</DataTableHeaderCell>
+              <DataTableHeaderCell responsive="hide-narrow">
+                Production
+              </DataTableHeaderCell>
+              <DataTableHeaderCell>Role</DataTableHeaderCell>
+              <DataTableHeaderCell align="right">Year</DataTableHeaderCell>
+            </DataTableHeader>
 
             {visibleFilms.map((film, index) => {
               const isSelected = selectedId === film.id
               const isInactive = isFilmInactive(film)
-              const rowColor = isInactive
-                ? 'text-[var(--foreground-subtle)]'
-                : isSelected
-                  ? 'text-[var(--accent)]'
-                  : 'text-[var(--foreground-muted)]'
 
               return (
-                <button
+                <DataTableRow
                   key={film.id}
-                  type="button"
-                  disabled={isInactive}
+                  selected={isSelected}
+                  inactive={isInactive}
                   onClick={() => {
                     if (isInactive) return
                     if (film.id !== selectedId && film.previewImg) {
@@ -707,53 +716,47 @@ export function FilmsShowcase({ initialSlug }: { initialSlug?: string }) {
                     setPreviewSrc(film.previewImg ?? null)
                   }
                   onMouseLeave={() => setPreviewSrc(null)}
-                  className={`grid w-full origin-left grid-cols-[minmax(0,1fr)_7rem_3rem] items-center gap-x-4 border-b border-[var(--border)] py-2.5 text-left text-[16px] tracking-[-0.012em] transition-[color,transform] duration-150 @[600px]:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_7rem_3rem] ${rowColor} ${
-                    isInactive
-                      ? 'cursor-default'
-                      : 'hover:text-[var(--accent)] active:scale-[0.99]'
-                  }`}
                 >
-                  <span className="min-w-0">
-                    <span className="flex items-center gap-2">
-                      <span
-                        className={`tabular-nums transition-colors ${
-                          isSelected
-                            ? 'text-[var(--accent)]'
-                            : 'text-[var(--foreground-subtle)]'
-                        }`}
-                      >
+                  <DataTablePrimaryCell>
+                    <DataTablePrimaryLine>
+                      <DataTableIndex>
                         {formatFilmNumber(index)}
-                      </span>
-                      <span className="truncate">{film.title}</span>
-                    </span>
+                      </DataTableIndex>
+                      <span className="data-table__title">{film.title}</span>
+                    </DataTablePrimaryLine>
                     {film.category === 'assistant' && (
-                      <span
-                        className={`mt-0.5 block truncate text-[13px] text-[var(--foreground-subtle)] @[600px]:hidden ${
-                          isIndependent(film.production) ? 'opacity-60' : ''
-                        }`}
+                      <DataTableSubtext
+                        responsive="show-narrow"
+                        className={
+                          isIndependent(film.production)
+                            ? 'data-table__cell--muted'
+                            : undefined
+                        }
                       >
                         {film.production}
-                      </span>
+                      </DataTableSubtext>
                     )}
                     {film.category === 'featured' && film.tag && (
-                      <span className="mt-0.5 flex items-center gap-2 text-[13px] text-[var(--foreground-subtle)]">
+                      <DataTableSubtext inline>
                         <FilmTag tag={film.tag} />
-                      </span>
+                      </DataTableSubtext>
                     )}
-                  </span>
-                  <span
-                    className={`hidden min-w-0 truncate @[600px]:block ${
-                      isIndependent(film.production) ? 'opacity-60' : ''
-                    }`}
+                  </DataTablePrimaryCell>
+                  <DataTableCell
+                    responsive="hide-narrow"
+                    truncate
+                    muted={isIndependent(film.production)}
                   >
                     {film.production}
-                  </span>
-                  <span className="truncate">{film.role}</span>
-                  <span className="text-right tabular-nums">{film.year}</span>
-                </button>
+                  </DataTableCell>
+                  <DataTableCell truncate>{film.role}</DataTableCell>
+                  <DataTableCell align="right">
+                    <DataTableTabular>{film.year}</DataTableTabular>
+                  </DataTableCell>
+                </DataTableRow>
               )
             })}
-          </div>
+          </DataTable>
         </Panel>
       </Group>
       </div>
